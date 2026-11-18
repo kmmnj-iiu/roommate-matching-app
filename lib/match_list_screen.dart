@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'roommate.dart';
 import 'detail_screen.dart';
 import 'config.dart';
-
+// 매치
 class MatchListScreen extends StatefulWidget {
   final String myName, mySleep, myWake;
   final bool myIsSmoker;

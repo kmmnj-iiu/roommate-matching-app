@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'roommate.dart';
 import 'config.dart';
-
+// 세부
 class DetailScreen extends StatefulWidget {
   final String myName, mySleep, myWake;
   final bool myIsSmoker;

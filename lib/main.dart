@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'match_list_screen.dart';
-
+// 메인
 void main() => runApp(const MaterialApp(
   debugShowCheckedModeBanner: false,
   home: InputScreen(),
