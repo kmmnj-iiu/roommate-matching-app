@@ -4,8 +4,36 @@ import 'package:http/http.dart' as http;
 import 'roommate.dart';
 import 'config.dart';
 
+class AiRecommendation {
+  final Roommate profile;
+  final double totalScore;
+  final double patternScore; // 2순위 생활패턴 점수
+  final double habitScore;   // 3순위 생활습관 점수
+  final String reason;
+  final List<String> warnings;
+
+  AiRecommendation({
+    required this.profile,
+    required this.totalScore,
+    required this.patternScore,
+    required this.habitScore,
+    required this.reason,
+    required this.warnings,
+  });
+}
+
+class AiMatchResponse {
+  final int eligibleCount;
+  final List<AiRecommendation> recommendations;
+
+  AiMatchResponse({
+    required this.eligibleCount,
+    required this.recommendations,
+  });
+}
+
 class AiMatchingService {
-  static Future<List<Roommate>> findTop5Matches({
+  static Future<AiMatchResponse> findTop5Matches({
     required String myName,
     required String myDorm,
     required String mySmoking,
@@ -25,12 +53,14 @@ class AiMatchingService {
     final allCandidates =
     (jsonDecode(raw) as List).map((e) => Roommate.fromJson(e)).toList();
 
-    // [1순위 필터링] 기숙사 동 & 흡연 여부가 정확히 일치하는 사람만 추출
+    // [1순위 필터링] 기숙사 동 & 흡연 여부 일치
     final filtered = allCandidates
         .where((r) => r.dorm == myDorm && r.smoking == mySmoking)
         .toList();
 
-    if (filtered.isEmpty) return [];
+    if (filtered.isEmpty) {
+      return AiMatchResponse(eligibleCount: 0, recommendations: []);
+    }
 
     final candidatesJson = filtered
         .map((r) => {
@@ -56,26 +86,23 @@ class AiMatchingService {
 
     final prompt = '''
 너는 대학교 기숙사 룸메이트 AI 매칭 분석관이다.
-아래 [기준 사용자]와 1순위 조건(기숙사 $myDorm, 흡연 $mySmoking)을 통과한 [후보자 목록]을 비교하여, 각 후보자의 최종 궁합 점수(40~100점)와 핵심 추천 사유를 산출하라.
+아래 [기준 사용자]와 1순위 조건($myDorm, 흡연 $mySmoking)을 통과한 [후보자 목록]을 비교하여, 각 후보자의 점수를 산출하라.
 
-[채점 배점 구조]
-1. 2순위 핵심 생활 리듬 유사도 (비중 55%):
-   - 취침 시간($mySleep), 기상 시간($myWake), 시간표상 첫 수업 시간($myFirstClass), 수업 외 기숙사 체류 여부($myStayInDorm)의 조화도를 정밀 판별할 것.
-2. 3순위 세부 생활 습관 6가지 통합 유사도 (비중 45%):
-   - 비교 항목: 주당 음주($myDrinking회), 주당 청소($myCleaning회), 방 안 식사($myEatInRoom), 방 안 통화($myCallInRoom), 잠귀 예민도($myLightSleeper), 코골이($mySnoring)
-   - ★ 사용자가 지정한 3순위 내부 우선순위($priorityOrderText)에서 앞순위에 있는 항목일수록 가중치를 높게 반영하여 유사도를 계산할 것. (단, 식사/통화가 '상관없음'이면 어떤 상대와도 감점 없음)
+[채점 기준]
+1. pattern_score (2순위 생활패턴 점수, 40~100점): 취침($mySleep), 기상($myWake), 첫 수업($myFirstClass), 기숙사 체류($myStayInDorm)의 조화도.
+2. habit_score (3순위 생활습관 점수, 40~100점): 음주($myDrinking회), 청소($myCleaning회), 식사($myEatInRoom), 통화($myCallInRoom), 잠귀예민($myLightSleeper), 코골이($mySnoring)를 사용자 우선순위($priorityOrderText) 가중치에 따라 평가. (식사/통화가 '상관없음'이면 감점 없음)
+3. total_score: pattern_score 70% + habit_score 30% 비중으로 반영한 최종 점수(소수점 1자리).
+4. warnings: 잠귀가 밝은데 상대 코골이가 있거나, 생활 패턴 차이가 큰 경우 주의사항 1줄 배열(없으면 빈 배열 []).
 
 [기준 사용자 ($myName)]
-- 취침/기상: $mySleep ~ $myWake / 첫 수업: $myFirstClass / 수업 외 기숙사 체류: $myStayInDorm
-- 주당 음주: $myDrinking회 / 주당 청소: $myCleaning회
-- 방 안 식사: $myEatInRoom / 방 안 통화: $myCallInRoom
-- 잠귀 예민도: $myLightSleeper / 코골이: $mySnoring
+- 취침/기상: $mySleep ~ $myWake / 첫 수업: $myFirstClass / 체류: $myStayInDorm
+- 음주 주 $myDrinking회 / 청소 주 $myCleaning회 / 식사 $myEatInRoom / 통화 $myCallInRoom / 잠귀예민 $myLightSleeper / 코골이 $mySnoring
 
 [후보자 목록]
 ${jsonEncode(candidatesJson)}
 
 반드시 아래 JSON 배열 형식으로만 응답하라:
-[{"name": "이름", "score": 92, "reason": "2순위 수면·첫수업 리듬 및 3순위 상위 항목 분석 요약(2문장)"}, ...]
+[{"name": "이름", "total_score": 91.5, "pattern_score": 93.0, "habit_score": 88.0, "reason": "핵심 궁합 평가(2문장)", "warnings": ["주의할 점(없으면 빈 배열)"]}, ...]
 ''';
 
     final listRes = await http
@@ -152,23 +179,45 @@ ${jsonEncode(candidatesJson)}
             for (var item in resultList) item['name'].toString(): item
           };
 
+          final List<AiRecommendation> recs = [];
           for (var r in filtered) {
             final info = resultMap[r.name];
             if (info != null) {
-              r.score = (info['score'] as num).toInt().clamp(40, 100);
-              r.aiReason = info['reason']?.toString() ?? '';
+              final total = (info['total_score'] as num).toDouble().clamp(40.0, 100.0);
+              final pattern = (info['pattern_score'] as num).toDouble().clamp(40.0, 100.0);
+              final habit = (info['habit_score'] as num).toDouble().clamp(40.0, 100.0);
+              final reason = info['reason']?.toString() ?? '';
+              final warns = (info['warnings'] as List?)
+                  ?.map((w) => w.toString())
+                  .where((w) => w.isNotEmpty)
+                  .toList() ??
+                  [];
+
+              r.score = total.round();
+              r.aiReason = reason;
+
+              recs.add(AiRecommendation(
+                profile: r,
+                totalScore: total,
+                patternScore: pattern,
+                habitScore: habit,
+                reason: reason,
+                warnings: warns,
+              ));
             }
           }
 
-          filtered.sort((a, b) => b.score.compareTo(a.score));
-          // 점수 높은 상위 5명만 반환
-          return filtered.take(5).toList();
+          recs.sort((a, b) => b.totalScore.compareTo(a.totalScore));
+          return AiMatchResponse(
+            eligibleCount: filtered.length,
+            recommendations: recs.take(5).toList(),
+          );
         }
       } catch (_) {
         continue;
       }
     }
 
-    throw Exception('AI 서버 응답 지연. 잠시 후 다시 시도해 주세요.');
+    throw Exception('AI 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.');
   }
 }
