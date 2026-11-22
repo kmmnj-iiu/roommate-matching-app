@@ -10,6 +10,7 @@ class RegisteredUserProfile {
   final String sleep;
   final String wake;
   final String firstClass;
+  final List<String> dailyFirstClasses;
   final String stayInDorm;
   final int drinkingPerWeek;
   final int cleaningPerWeek;
@@ -26,6 +27,7 @@ class RegisteredUserProfile {
     required this.sleep,
     required this.wake,
     required this.firstClass,
+    required this.dailyFirstClasses,
     required this.stayInDorm,
     required this.drinkingPerWeek,
     required this.cleaningPerWeek,
@@ -43,6 +45,7 @@ class RegisteredUserProfile {
     'sleep': sleep,
     'wake': wake,
     'first_class': firstClass,
+    'daily_first_classes': dailyFirstClasses,
     'stay_in_dorm': stayInDorm,
     'drinking_per_week': drinkingPerWeek,
     'cleaning_per_week': cleaningPerWeek,
@@ -54,13 +57,24 @@ class RegisteredUserProfile {
   };
 
   factory RegisteredUserProfile.fromJson(Map<String, dynamic> json) {
+    final fallbackFirst = json['first_class']?.toString() ?? '09:00';
+    final parsedDaily = (json['daily_first_classes'] as List?)
+        ?.map((e) => e.toString())
+        .toList();
+
     return RegisteredUserProfile(
       name: json['name']?.toString() ?? '',
       dorm: json['dorm']?.toString() ?? '101동',
       smoking: json['smoking']?.toString() ?? 'X',
-      sleep: json['sleep']?.toString() ?? '00:00',
-      wake: json['wake']?.toString() ?? '08:00',
-      firstClass: json['first_class']?.toString() ?? '09:00',
+      sleep: json['sleep']?.toString() ?? '00:30',
+      wake: json['wake']?.toString() ?? '08:30',
+      firstClass: fallbackFirst,
+      dailyFirstClasses: (parsedDaily != null && parsedDaily.length == 5)
+          ? parsedDaily
+          : List<String>.filled(
+        5,
+        fallbackFirst == '오전수업 없음' ? '수업 없음' : fallbackFirst,
+      ),
       stayInDorm: json['stay_in_dorm']?.toString() ?? '중간',
       drinkingPerWeek: (json['drinking_per_week'] as num?)?.toInt() ?? 1,
       cleaningPerWeek: (json['cleaning_per_week'] as num?)?.toInt() ?? 2,

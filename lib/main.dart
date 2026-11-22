@@ -126,77 +126,77 @@ class WelcomeScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
-              Container(
-                width: 64,
-                height: 64,
-                alignment: Alignment.centerLeft,
+              const Spacer(flex: 3),
+              Center(
                 child: Container(
-                  padding: const EdgeInsets.all(14),
+                  width: 92,
+                  height: 92,
                   decoration: BoxDecoration(
-                    color: AppColors.lightBlue,
-                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.blue.withValues(alpha: 0.08),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
                   child: const Icon(
-                    Icons.meeting_room_outlined,
+                    Icons.meeting_room_rounded,
                     color: AppColors.blue,
-                    size: 34,
+                    size: 46,
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                '나와 딱 맞는\n기숙사 룸메이트, 룸핏',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text,
-                  height: 1.3,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                '나의 기숙사 조건과 생활패턴, 작은 생활습관까지\n한 번만 등록해 두면 AI가 가장 잘 맞는 룸메이트를 찾아드려요.',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppColors.muted,
-                  height: 1.55,
                 ),
               ),
               const SizedBox(height: 28),
-              WhitePanel(
-                child: Column(
-                  children: const [
-                    _FeatureRow(
-                      icon: Icons.verified_user_outlined,
-                      title: '필수 조건 100% 일치 보장',
-                      desc: '희망 기숙사 동과 흡연 여부가 같은 후보만 선별합니다.',
+              Center(
+                child: Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightBlue,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: const Text(
+                    'ROOMFIT',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.blue,
+                      letterSpacing: 1.2,
                     ),
-                    Divider(height: 24, color: AppColors.border),
-                    _FeatureRow(
-                      icon: Icons.auto_awesome_outlined,
-                      title: 'AI 기반 생활패턴·습관 정밀 분석',
-                      desc: '수면 리듬과 우선순위 가중치를 반영해 TOP 5를 추천합니다.',
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 16),
+              const Text(
+                '나와 딱 맞는\n기숙사 룸메이트, 룸핏',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                  height: 1.35,
+                  letterSpacing: -0.6,
+                ),
+              ),
+              const Spacer(flex: 4),
               FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.blue,
                   foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(54),
+                  minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   textStyle: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 16.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -221,53 +221,6 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-class _FeatureRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String desc;
-
-  const _FeatureRow({
-    required this.icon,
-    required this.title,
-    required this.desc,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: AppColors.blue, size: 22),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                desc,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.muted,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// 2. 내 정보 전체 항목 등록(및 수정) 페이지
 class ProfileRegisterScreen extends StatefulWidget {
   final RegisteredUserProfile? initialProfile;
@@ -285,10 +238,12 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
   int _step = 0;
   String _dorm = '101동';
   String _smoking = 'X';
-  int _sleep = 24 * 60 + 30;
-  int _wake = 8 * 60 + 30;
-  int _firstClass = 10 * 60;
-  bool _noMorningClass = false;
+  TimeOfDay _sleepTime = const TimeOfDay(hour: 0, minute: 30);
+  TimeOfDay _wakeTime = const TimeOfDay(hour: 8, minute: 30);
+
+  late List<TimeOfDay> _dailyClassTimes;
+  late List<bool> _dailyNoClass;
+
   String _stay = '중간';
   int _drink = 1;
   int _clean = 2;
@@ -305,6 +260,7 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
   static const _stays = ['거의 없음', '중간', '많음'];
   static const _roomOptions = ['O', 'X', '상관없음'];
   static const _steps = ['1. 기본 조건', '2. 생활패턴', '3. 생활습관'];
+  static const _weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일'];
 
   @override
   void initState() {
@@ -314,13 +270,21 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
       _name.text = init.name;
       _dorm = _dorms.contains(init.dorm) ? init.dorm : '101동';
       _smoking = init.smoking;
-      _sleep = _parseMin(init.sleep);
-      _wake = _parseMin(init.wake);
-      if (init.firstClass == '오전수업 없음') {
-        _noMorningClass = true;
-      } else {
-        _firstClass = _parseMin(init.firstClass);
-      }
+      _sleepTime = _parseTimeOfDay(init.sleep, fallbackHour: 0, fallbackMin: 30);
+      _wakeTime = _parseTimeOfDay(init.wake, fallbackHour: 8, fallbackMin: 30);
+
+      _dailyClassTimes = List<TimeOfDay>.generate(5, (i) {
+        final str = init.dailyFirstClasses[i];
+        if (str == '수업 없음' || str == '오전수업 없음') {
+          return const TimeOfDay(hour: 9, minute: 0);
+        }
+        return _parseTimeOfDay(str, fallbackHour: 9, fallbackMin: 0);
+      });
+      _dailyNoClass = List<bool>.generate(5, (i) {
+        final str = init.dailyFirstClasses[i];
+        return str == '수업 없음' || str == '오전수업 없음';
+      });
+
       _stay = init.stayInDorm;
       _drink = init.drinkingPerWeek;
       _clean = init.cleaningPerWeek;
@@ -330,6 +294,9 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
       _snore = init.snoring == 'O';
       _priorities = List<String>.from(init.rank3Priorities);
     } else {
+      _dailyClassTimes =
+      List<TimeOfDay>.filled(5, const TimeOfDay(hour: 9, minute: 0));
+      _dailyNoClass = List<bool>.filled(5, false);
       _priorities = [
         '잠귀 예민도',
         '코골이 여부',
@@ -341,11 +308,48 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
     }
   }
 
-  int _parseMin(String hhmm) {
-    final p = hhmm.split(':');
-    int h = int.parse(p[0]);
-    if (h < 12) h += 24;
-    return h * 60 + int.parse(p[1]);
+  TimeOfDay _parseTimeOfDay(String hhmm,
+      {required int fallbackHour, required int fallbackMin}) {
+    try {
+      final p = hhmm.split(':');
+      final h = int.parse(p[0]) % 24;
+      final m = int.parse(p[1]);
+      return TimeOfDay(hour: h, minute: m);
+    } catch (_) {
+      return TimeOfDay(hour: fallbackHour, minute: fallbackMin);
+    }
+  }
+
+  String _formatTimeOfDay(TimeOfDay t) {
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  Future<void> _pickTime({
+    required TimeOfDay initial,
+    required ValueChanged<TimeOfDay> onSelected,
+  }) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      initialEntryMode: TimePickerEntryMode.dial,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.blue,
+              onPrimary: Colors.white,
+              onSurface: AppColors.text,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      onSelected(picked);
+    }
   }
 
   @override
@@ -373,12 +377,13 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
     }
   }
 
-  void _movePriority(int index, int delta) {
-    final target = index + delta;
-    if (target < 0 || target >= _priorities.length) return;
+  void _onReorderPriority(int oldIndex, int newIndex) {
     setState(() {
-      final item = _priorities.removeAt(index);
-      _priorities.insert(target, item);
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final item = _priorities.removeAt(oldIndex);
+      _priorities.insert(newIndex, item);
     });
   }
 
@@ -396,13 +401,25 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
       _error = null;
     });
 
+    final dailyStrings = List<String>.generate(5, (i) {
+      return _dailyNoClass[i]
+          ? '수업 없음'
+          : _formatTimeOfDay(_dailyClassTimes[i]);
+    });
+
+    final shortDays = ['월', '화', '수', '목', '금'];
+    final summaryFirstClass = List<String>.generate(5, (i) {
+      return '${shortDays[i]} ${dailyStrings[i]}';
+    }).join(', ');
+
     final profile = RegisteredUserProfile(
       name: _name.text.trim(),
       dorm: _dorm,
       smoking: _smoking,
-      sleep: formatMinutes(_sleep),
-      wake: formatMinutes(_wake),
-      firstClass: _noMorningClass ? '오전수업 없음' : formatMinutes(_firstClass),
+      sleep: _formatTimeOfDay(_sleepTime),
+      wake: _formatTimeOfDay(_wakeTime),
+      firstClass: summaryFirstClass,
+      dailyFirstClasses: dailyStrings,
       stayInDorm: _stay,
       drinkingPerWeek: _drink,
       cleaningPerWeek: _clean,
@@ -601,7 +618,7 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          '취침·기상 시간과 기숙사 체류 시간은 매칭의 70% 비중으로 반영됩니다.',
+          '시간을 눌러 시계 또는 키보드로 직접 시간을 선택할 수 있어요.',
           style: TextStyle(fontSize: 14, color: AppColors.muted),
         ),
         const SizedBox(height: 20),
@@ -609,44 +626,24 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sliderRow(
+              _timePickerTile(
+                icon: Icons.bedtime_outlined,
                 label: '평균 취침 시간',
-                valueText: formatMinutes(_sleep),
-                value: _sleep.toDouble(),
-                min: 21 * 60,
-                max: 28 * 60,
-                divisions: 28,
-                onChanged: (v) => setState(() => _sleep = v.round()),
+                timeText: _formatTimeOfDay(_sleepTime),
+                onTap: () => _pickTime(
+                  initial: _sleepTime,
+                  onSelected: (t) => setState(() => _sleepTime = t),
+                ),
               ),
-              const Divider(height: 28, color: AppColors.border),
-              _sliderRow(
+              const Divider(height: 24, color: AppColors.border),
+              _timePickerTile(
+                icon: Icons.wb_sunny_outlined,
                 label: '평균 기상 시간',
-                valueText: formatMinutes(_wake),
-                value: _wake.toDouble(),
-                min: 5 * 60,
-                max: 13 * 60,
-                divisions: 32,
-                onChanged: (v) => setState(() => _wake = v.round()),
-              ),
-              const Divider(height: 28, color: AppColors.border),
-              _sliderRow(
-                label: '첫 수업 시작 시간',
-                valueText:
-                _noMorningClass ? '오전수업 없음' : formatMinutes(_firstClass),
-                value: _firstClass.toDouble(),
-                min: 8 * 60,
-                max: 15 * 60,
-                divisions: 28,
-                onChanged: _noMorningClass
-                    ? null
-                    : (v) => setState(() => _firstClass = v.round()),
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _noMorningClass,
-                activeColor: AppColors.blue,
-                title: const Text('오전 수업 없음', style: TextStyle(fontSize: 14)),
-                onChanged: (v) => setState(() => _noMorningClass = v ?? false),
+                timeText: _formatTimeOfDay(_wakeTime),
+                onTap: () => _pickTime(
+                  initial: _wakeTime,
+                  onSelected: (t) => setState(() => _wakeTime = t),
+                ),
               ),
               const Divider(height: 24, color: AppColors.border),
               const Text('수업 외 기숙사 체류 시간',
@@ -658,6 +655,173 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
                 onChanged: (v) => setState(() => _stay = v),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        WhitePanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '요일별 첫 수업 시작 시간',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '요일마다 시간을 눌러 선택하거나 공강(수업 없음)을 체크하세요.',
+                style: TextStyle(fontSize: 13, color: AppColors.muted),
+              ),
+              const SizedBox(height: 14),
+              ...List.generate(5, (i) {
+                final isNoClass = _dailyNoClass[i];
+                return Container(
+                  margin: EdgeInsets.only(bottom: i < 4 ? 10 : 0),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 52,
+                        child: Text(
+                          _weekdays[i],
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: isNoClass
+                              ? null
+                              : () => _pickTime(
+                            initial: _dailyClassTimes[i],
+                            onSelected: (t) => setState(
+                                    () => _dailyClassTimes[i] = t),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isNoClass
+                                  ? Colors.white.withValues(alpha: 0.5)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  isNoClass
+                                      ? '수업 없음'
+                                      : _formatTimeOfDay(_dailyClassTimes[i]),
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: isNoClass
+                                        ? AppColors.muted
+                                        : AppColors.blue,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  size: 18,
+                                  color: isNoClass
+                                      ? AppColors.muted
+                                      : AppColors.blue,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => setState(
+                                () => _dailyNoClass[i] = !_dailyNoClass[i]),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: isNoClass,
+                              activeColor: AppColors.blue,
+                              materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              onChanged: (v) => setState(
+                                      () => _dailyNoClass[i] = v ?? false),
+                            ),
+                            const Text(
+                              '없음',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _timePickerTile({
+    required IconData icon,
+    required String label,
+    required String timeText,
+    required VoidCallback onTap,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.blue),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: AppColors.lightBlue,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  timeText,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.blue,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.edit_outlined, size: 16, color: AppColors.blue),
+              ],
+            ),
           ),
         ),
       ],
@@ -743,95 +907,133 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('생활습관 중요도 순위',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              const Text('화살표를 눌러 중요한 항목을 위로 올려주세요.',
-                  style: TextStyle(fontSize: 13, color: AppColors.muted)),
-              const SizedBox(height: 12),
-              ...List.generate(_priorities.length, (i) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(12),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '생활습관 중요도 순위',
+                      style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: AppColors.blue,
-                        child: Text(
-                          '${i + 1}',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700),
+                  Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightBlue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      '드래그로 순서 변경',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '항목을 길게 눌러 위아래로 끌어당겨 순위를 정해주세요.',
+                style: TextStyle(fontSize: 13, color: AppColors.muted),
+              ),
+              const SizedBox(height: 14),
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: _priorities.length,
+                onReorder: _onReorderPriority,
+                proxyDecorator: (child, index, animation) {
+                  return AnimatedBuilder(
+                    animation: animation,
+                    builder: (context, child) {
+                      return Material(
+                        elevation: 6,
+                        color: Colors.transparent,
+                        shadowColor: AppColors.blue.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Transform.scale(
+                          scale: 1.02,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: child,
+                  );
+                },
+                itemBuilder: (context, i) {
+                  final label = _priorities[i];
+                  final isTop3 = i < 3;
+                  return ReorderableDragStartListener(
+                    key: ValueKey(label),
+                    index: i,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: isTop3 ? Colors.white : AppColors.background,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isTop3
+                              ? AppColors.blue.withValues(alpha: 0.35)
+                              : AppColors.border,
+                          width: isTop3 ? 1.3 : 1,
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _priorities[i],
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600),
-                        ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.drag_indicator_rounded,
+                            color: isTop3 ? AppColors.blue : AppColors.muted,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isTop3
+                                  ? AppColors.blue
+                                  : AppColors.muted.withValues(alpha: 0.25),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${i + 1}',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: isTop3 ? Colors.white : AppColors.text,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight:
+                                isTop3 ? FontWeight.w700 : FontWeight.w600,
+                                color: AppColors.text,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_up, size: 20),
-                        onPressed: i == 0 ? null : () => _movePriority(i, -1),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                        onPressed: i == _priorities.length - 1
-                            ? null
-                            : () => _movePriority(i, 1),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _sliderRow({
-    required String label,
-    required String valueText,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required ValueChanged<double>? onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label,
-                style:
-                const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-            Text(valueText,
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.blue)),
-          ],
-        ),
-        Slider(
-          value: value.clamp(min, max),
-          min: min,
-          max: max,
-          divisions: divisions,
-          activeColor: AppColors.blue,
-          onChanged: onChanged,
         ),
       ],
     );
@@ -981,7 +1183,7 @@ class _RecommendationDashboardScreenState
   int _roomOptionToInt(String opt) {
     if (opt == 'X') return 0;
     if (opt == 'O') return 1;
-    return 2; // 상관없음
+    return 2;
   }
 
   Future<void> _runAiMatching() async {
@@ -1019,10 +1221,11 @@ class _RecommendationDashboardScreenState
       }
 
       final wakeMin = _hhmmToMinutes(u.wake);
-      final int? firstClassMin =
-      u.firstClass == '오전수업 없음' ? null : _hhmmToMinutes(u.firstClass);
+      final List<int?> dailyFirstClassMins = u.dailyFirstClasses.map((str) {
+        if (str == '수업 없음' || str == '오전수업 없음') return null;
+        return _hhmmToMinutes(str);
+      }).toList();
 
-      // match_list_screen.dart의 원래 ResultScreen으로 연결
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ResultScreen(
@@ -1031,7 +1234,7 @@ class _RecommendationDashboardScreenState
             mySmoking: u.smoking == 'O',
             myBed: _hhmmToMinutes(u.sleep),
             myWake: List<int>.filled(5, wakeMin),
-            myFirstClass: List<int?>.filled(5, firstClassMin),
+            myFirstClass: dailyFirstClassMins,
             myStayLabel: u.stayInDorm,
             myHabits: {
               'drink': u.drinkingPerWeek,
@@ -1172,7 +1375,6 @@ class _RecommendationDashboardScreenState
                       InfoPill(text: '흡연 ${u.smoking}'),
                       InfoPill(text: '취침 ${u.sleep}'),
                       InfoPill(text: '기상 ${u.wake}'),
-                      InfoPill(text: '첫수업 ${u.firstClass}'),
                       InfoPill(text: '체류 ${u.stayInDorm}'),
                       InfoPill(text: '음주 주 ${u.drinkingPerWeek}회'),
                       InfoPill(text: '청소 주 ${u.cleaningPerWeek}회'),
@@ -1181,6 +1383,15 @@ class _RecommendationDashboardScreenState
                       InfoPill(text: '잠귀예민 ${u.lightSleeper}'),
                       InfoPill(text: '코골이 ${u.snoring}'),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '첫 수업: ${u.firstClass}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.muted,
+                      height: 1.4,
+                    ),
                   ),
                   const Divider(height: 24, color: AppColors.border),
                   Text(
