@@ -1,6 +1,7 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'roommate.dart';
 
 class RegisteredUserProfile {
@@ -95,82 +96,103 @@ class RegisteredUserProfile {
 }
 
 class UserStorageService {
-  static const String _myProfileKey = 'roomfit_registered_user_v1';
-  static const String _registeredPoolKey = 'roomfit_registered_pool_v1';
-  static const String _likedRoommatesKey = 'roomfit_liked_roommates_v1';
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// 익명 로그인 보장 후 현재 사용자 UID 반환
+  static Future<String> _ensureSignedInUid() async {
+    final current = _auth.currentUser;
+    if (current != null) {
+      return current.uid;
+    }
+    final cred = await _auth.signInAnonymously();
+    return cred.user!.uid;
+  }
+
+  /// Firestore `users/{uid}`에서 내 등록 프로필 조회
   static Future<RegisteredUserProfile?> getMyProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_myProfileKey);
-    if (raw == null || raw.isEmpty) return null;
+    final uid = await _ensureSignedInUid();
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists || doc.data() == null) return null;
     try {
-      return RegisteredUserProfile.fromJson(jsonDecode(raw));
+      return RegisteredUserProfile.fromJson(doc.data()!);
     } catch (_) {
       return null;
     }
   }
 
+  /// Firestore `users/{uid}`에 내 프로필 저장 (클라우드 공유)
   static Future<void> saveMyProfile(RegisteredUserProfile profile) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_myProfileKey, jsonEncode(profile.toJson()));
+    final uid = await _ensureSignedInUid();
+    final data = profile.toJson()
+      ..['uid'] = uid
+      ..['updatedAt'] = FieldValue.serverTimestamp();
 
-    final poolRaw = prefs.getString(_registeredPoolKey);
-    final List<dynamic> pool = [];
-    if (poolRaw != null && poolRaw.isNotEmpty) {
-      final decoded = jsonDecode(poolRaw) as List<dynamic>;
-      pool.addAll(decoded);
-    }
-    pool.removeWhere((e) => (e as Map)['name'] == profile.name);
-    pool.add(profile.toJson());
-    await prefs.setString(_registeredPoolKey, jsonEncode(pool));
+    await _db.collection('users').doc(uid).set(data);
   }
 
+  /// 초기화: Firestore에서 내 프로필 및 내가 보낸 신청 내역 삭제
   static Future<void> clearMyProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_myProfileKey);
-    await prefs.remove(_likedRoommatesKey);
+    final uid = await _ensureSignedInUid();
+    await _db.collection('users').doc(uid).delete();
+
+    final myLikes =
+    await _db.collection('likes').where('fromUid', isEqualTo: uid).get();
+    for (final doc in myLikes.docs) {
+      await doc.reference.delete();
+    }
   }
 
   /// 내가 룸메이트 신청(좋아요)을 보낸 상대 이름 목록 조회
   static Future<Set<String>> getLikedRoommates() async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_likedRoommatesKey) ?? const [];
-    return list.toSet();
+    final uid = await _ensureSignedInUid();
+    final snap =
+    await _db.collection('likes').where('fromUid', isEqualTo: uid).get();
+
+    return snap.docs
+        .map((d) => d.data()['toName']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toSet();
   }
 
   /// 특정 상대에게 룸메이트 신청(좋아요) 토글 후 최신 목록 반환
   static Future<Set<String>> toggleLikedRoommate(String targetName) async {
-    final prefs = await SharedPreferences.getInstance();
-    final current = (prefs.getStringList(_likedRoommatesKey) ?? const []).toSet();
-    if (current.contains(targetName)) {
-      current.remove(targetName);
+    final uid = await _ensureSignedInUid();
+    final myProfile = await getMyProfile();
+    final docId = '${uid}_$targetName';
+    final docRef = _db.collection('likes').doc(docId);
+
+    final snap = await docRef.get();
+    if (snap.exists) {
+      await docRef.delete();
     } else {
-      current.add(targetName);
+      await docRef.set({
+        'fromUid': uid,
+        'fromName': myProfile?.name ?? '익명 사용자',
+        'toName': targetName,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     }
-    await prefs.setStringList(_likedRoommatesKey, current.toList());
-    return current;
+
+    return getLikedRoommates();
   }
 
+  /// 기본 JSON(75명) + Firestore에 등록된 실제 사용자 전체 통합 로드
   static Future<List<Roommate>> loadAllCandidates() async {
+    await _ensureSignedInUid();
     final raw = await rootBundle.loadString('assets/roommates.json');
     final baseList =
     (jsonDecode(raw) as List).map((e) => Roommate.fromJson(e)).toList();
 
-    final prefs = await SharedPreferences.getInstance();
-    final poolRaw = prefs.getString(_registeredPoolKey);
-    if (poolRaw == null || poolRaw.isEmpty) {
-      return baseList;
-    }
-
-    final savedList = (jsonDecode(poolRaw) as List)
-        .map((e) => Roommate.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
-
+    final snap = await _db.collection('users').get();
     final existingNames = baseList.map((e) => e.name).toSet();
     final merged = [...baseList];
-    for (final s in savedList) {
-      if (!existingNames.contains(s.name)) {
-        merged.add(s);
+
+    for (final doc in snap.docs) {
+      final candidate = Roommate.fromJson(doc.data());
+      if (candidate.name.isNotEmpty && !existingNames.contains(candidate.name)) {
+        merged.add(candidate);
+        existingNames.add(candidate.name);
       }
     }
     return merged;
