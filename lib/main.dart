@@ -576,7 +576,7 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
               const SizedBox(height: 10),
               TextField(
                 controller: _name,
-                decoration: const InputDecoration(hintText: '예: 김민준'),
+                decoration: const InputDecoration(hintText: '예: 김민주'),
               ),
               const SizedBox(height: 22),
               const Text('희망 기숙사 동',
