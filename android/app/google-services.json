@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "886757330654",
+    "project_id": "dorm-mate-a26",
+    "storage_bucket": "dorm-mate-a26.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:886757330654:android:82156baf5eb89ea4b8bc4f",
+        "android_client_info": {
+          "package_name": "com.example.dorm_mate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPY12lURpwTFpSaEbfVCurTBzSqrYtbGQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

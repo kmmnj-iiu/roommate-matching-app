@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'clean_ui.dart';
 import 'ai_matching_service.dart';
+import 'clean_ui.dart';
+import 'roommate.dart';
+import 'user_storage_service.dart';
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final AiMatchResponse response;
   final String myDorm;
   final bool mySmoking;
@@ -26,369 +28,575 @@ class ResultScreen extends StatelessWidget {
     required this.myPriorityKeys,
   });
 
-  static const _weekdays = ['월', '화', '수', '목', '금'];
-  static const _habitTitles = {
-    'drink': '음주 빈도',
-    'clean': '청소 빈도',
-    'meal': '방 안 식사',
-    'call': '방 안 통화',
-    'sensitive': '잠귀 예민도',
-    'snore': '코골이 여부',
-  };
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
 
-  String _displayMyHabit(String key, int val) {
-    if (key == 'drink' || key == 'clean') return '주 $val회';
-    if (key == 'meal' || key == 'call') {
-      return {0: '비허용', 1: '허용', 2: '상관없음'}[val]!;
-    }
-    if (key == 'sensitive') return val == 1 ? '잠귀가 밝음' : '잠귀가 밝지 않음';
-    return val == 1 ? '코골이 있음' : '코골이 없음';
+class _ResultScreenState extends State<ResultScreen> {
+  Set<String> _likedNames = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLikes();
   }
 
-  String _displayOtherHabit(String key, AiRecommendation item) {
-    final p = item.profile;
-    if (key == 'drink') return '주 ${p.drinkingPerWeek}회';
-    if (key == 'clean') return '주 ${p.cleaningPerWeek}회';
-    if (key == 'meal') return p.eatInRoom == 'O' ? '허용' : (p.eatInRoom == 'X' ? '비허용' : '상관없음');
-    if (key == 'call') return p.callInRoom == 'O' ? '허용' : (p.callInRoom == 'X' ? '비허용' : '상관없음');
-    if (key == 'sensitive') return p.lightSleeper == 'O' ? '잠귀가 밝음' : '잠귀가 밝지 않음';
-    return p.snoring == 'O' ? '코골이 있음' : '코골이 없음';
+  Future<void> _loadLikes() async {
+    final liked = await UserStorageService.getLikedRoommates();
+    if (!mounted) return;
+    setState(() => _likedNames = liked);
   }
 
-  Widget _scoreBar(String label, double score, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          Row(
+  Future<void> _toggleLike(String candidateName) async {
+    final wasLiked = _likedNames.contains(candidateName);
+    final updated = await UserStorageService.toggleLikedRoommate(candidateName);
+    if (!mounted) return;
+    setState(() => _likedNames = updated);
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: wasLiked ? AppColors.text : AppColors.blue,
+          content: Row(
             children: [
-              Expanded(child: Text(label, style: const TextStyle(color: AppColors.muted))),
-              Text(score.toStringAsFixed(1),
-                  style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+              Icon(
+                wasLiked ? Icons.heart_broken_rounded : Icons.favorite_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  wasLiked
+                      ? '$candidateName님에게 보낸 룸메이트 신청을 취소했어요.'
+                      : '$candidateName님에게 룸메이트 신청을 보냈어요!',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: (score / 100).clamp(0.0, 1.0).toDouble(),
-              minHeight: 7,
-              backgroundColor: AppColors.background,
-              color: color,
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final list = widget.response.recommendations;
+
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 8,
+        title: const Text(
+          '추천 결과',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
+        ),
+        actions: [
+          if (_likedNames.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEFEF),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.favorite_rounded,
+                        size: 14,
+                        color: Color(0xFFE53935),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '신청 ${_likedNames.length}명',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFE53935),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+        children: [
+          Text(
+            '${widget.myDorm} · ${widget.mySmoking ? '흡연' : '비흡연'} 기준\nAI 룸메이트 추천 TOP ${list.length}',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+              height: 1.35,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _warning(String text) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.warning,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline, size: 18, color: Color(0xFF9A4D00)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text,
-                style: const TextStyle(color: Color(0xFF7A3E00), fontSize: 12, height: 1.5)),
+          const SizedBox(height: 8),
+          const Text(
+            '마음에 드는 후보에게 하트를 눌러 룸메이트 신청을 보내보세요.',
+            style: TextStyle(fontSize: 14, color: AppColors.muted),
           ),
+          const SizedBox(height: 20),
+          if (list.isEmpty)
+            const WhitePanel(
+              child: Text(
+                '같은 기숙사 동과 흡연 여부가 일치하는 후보를 찾지 못했습니다.',
+                style: TextStyle(fontSize: 15, color: AppColors.muted),
+              ),
+            ),
+          for (int i = 0; i < list.length; i++) ...[
+            _RankCard(
+              rank: i + 1,
+              item: list[i],
+              isLiked: _likedNames.contains(list[i].profile.name),
+              onToggleLike: () => _toggleLike(list[i].profile.name),
+              onTap: () => _openDetail(context, list[i]),
+            ),
+            const SizedBox(height: 14),
+          ],
         ],
       ),
     );
   }
 
-  Widget _comparisonRow(String label, String mine, String other, {bool header = false}) {
-    final style = TextStyle(
-      fontSize: 13,
-      fontWeight: header ? FontWeight.w700 : FontWeight.w400,
-      color: header ? AppColors.text : AppColors.muted,
+  void _openDetail(BuildContext context, AiRecommendation item) {
+    final p = item.profile;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (modalContext, setModalState) {
+          final isLiked = _likedNames.contains(p.name);
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.85,
+            minChildSize: 0.55,
+            maxChildSize: 0.95,
+            builder: (_, scrollController) => ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(22, 14, 22, 36),
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p.name,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${p.dorm} · ${p.smoking == 'O' ? '흡연' : '비흡연'} · 일치도 ${item.totalScore.toStringAsFixed(1)}점',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _LikeActionButton(
+                      isLiked: isLiked,
+                      onPressed: () async {
+                        await _toggleLike(p.name);
+                        setModalState(() {});
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightBlue,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    item.reason,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      color: AppColors.text,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                if (item.warnings.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '미리 조율할 부분',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        for (final c in item.warnings)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '· $c',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                color: AppColors.text,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 22),
+                const Text(
+                  '나와 상세 비교',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _compareRow('취침 시간', formatMinutes(widget.myBed), p.sleep),
+                _compareRow(
+                  '기상 시간',
+                  _formatWakeList(widget.myWake),
+                  p.wake,
+                ),
+                _compareRow(
+                  '첫 수업 시간',
+                  _formatFirstClassList(widget.myFirstClass),
+                  p.firstClass,
+                ),
+                _compareRow('기숙사 체류', widget.myStayLabel, p.stayInDorm),
+                _compareRow(
+                  '주간 음주',
+                  '주 ${widget.myHabits['drink']}회',
+                  '주 ${p.drinkingPerWeek}회',
+                ),
+                _compareRow(
+                  '주간 청소',
+                  '주 ${widget.myHabits['clean']}회',
+                  '주 ${p.cleaningPerWeek}회',
+                ),
+                _compareRow(
+                  '방 안 식사',
+                  _triLabel(widget.myHabits['meal']!),
+                  p.eatInRoom,
+                ),
+                _compareRow(
+                  '방 안 통화',
+                  _triLabel(widget.myHabits['call']!),
+                  p.callInRoom,
+                ),
+                _compareRow(
+                  '잠귀 예민',
+                  widget.myHabits['sensitive'] == 1 ? '예민함' : '무던함',
+                  p.lightSleeper == 'O' ? '예민함' : '무던함',
+                ),
+                _compareRow(
+                  '코골이',
+                  widget.myHabits['snore'] == 1 ? '있음' : '없음',
+                  p.snoring == 'O' ? '있음' : '없음',
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
+  }
+
+  String _triLabel(int v) {
+    if (v == 0) return '비선호';
+    if (v == 1) return '선호';
+    return '무관';
+  }
+
+  String _formatWakeList(List<int> list) {
+    final unique = list.map(formatMinutes).toSet();
+    if (unique.length == 1) return unique.first;
+    const days = ['월', '화', '수', '목', '금'];
+    return List.generate(5, (i) => '${days[i]} ${formatMinutes(list[i])}')
+        .join(', ');
+  }
+
+  String _formatFirstClassList(List<int?> list) {
+    const days = ['월', '화', '수', '목', '금'];
+    return List.generate(
+      5,
+          (i) => '${days[i]} ${list[i] == null ? '없음' : formatMinutes(list[i]!)}',
+    ).join(', ');
+  }
+
+  Widget _compareRow(String label, String mine, String theirs) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 3, child: Text(label, style: style)),
+          SizedBox(
+            width: 82,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: AppColors.muted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '나: $mine',
+              style: const TextStyle(fontSize: 13.5, color: AppColors.text),
+            ),
+          ),
           const SizedBox(width: 8),
-          Expanded(flex: 4, child: Text(mine, style: style)),
-          const SizedBox(width: 8),
-          Expanded(flex: 4, child: Text(other, style: style)),
+          Expanded(
+            child: Text(
+              '상대: $theirs',
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: AppColors.blue,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+}
 
-  void _showDetails(BuildContext context, AiRecommendation item) {
-    final person = item.profile;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: AppColors.background,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(sheetContext).size.height * 0.85,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 8, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text('${person.name}님과 비교',
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(sheetContext),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    children: [
-                      WhitePanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('생활패턴 비교',
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 8),
-                            _comparisonRow('항목', '나', '상대', header: true),
-                            const Divider(),
-                            _comparisonRow('취침', formatMinutes(myBed), person.sleep),
-                            _comparisonRow(
-                                '기숙사 체류',
-                                myStayLabel,
-                                person.stayInDorm == 'O' ? '주로 기숙사' : '주로 외출'),
-                            const Divider(),
-                            for (int day = 0; day < 5; day++) ...[
-                              _comparisonRow('${_weekdays[day]} 기상',
-                                  formatMinutes(myWake[day]), person.wake),
-                              _comparisonRow(
-                                  '${_weekdays[day]} 첫 수업',
-                                  myFirstClass[day] == null
-                                      ? '수업 없음'
-                                      : formatMinutes(myFirstClass[day]!),
-                                  person.firstClass),
-                              if (day < 4) const Divider(),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      WhitePanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const Text('내 중요도 기준 생활습관',
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 12),
-                            for (int i = 0; i < myPriorityKeys.length; i++) ...[
-                              Text('${i + 1}순위. ${_habitTitles[myPriorityKeys[i]]}',
-                                  style: const TextStyle(fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 6),
-                              Text(
-                                '나: ${_displayMyHabit(myPriorityKeys[i], myHabits[myPriorityKeys[i]]!)}\n'
-                                    '상대: ${_displayOtherHabit(myPriorityKeys[i], item)}',
-                                style: const TextStyle(color: AppColors.muted, height: 1.6),
-                              ),
-                              if (i < myPriorityKeys.length - 1) const Divider(height: 24),
-                            ],
-                          ],
-                        ),
-                      ),
-                      for (final w in item.warnings) _warning(w),
-                      const SizedBox(height: 16),
-                      WhitePanel(
-                        child: ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          childrenPadding: const EdgeInsets.only(bottom: 12),
-                          title: const Text('점수 산출 방식 안내',
-                              style: TextStyle(fontWeight: FontWeight.w700)),
-                          children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                '생활패턴(2순위): ${item.patternScore.toStringAsFixed(1)}점 (70%)\n'
-                                    '생활습관(3순위): ${item.habitScore.toStringAsFixed(1)}점 (30%)\n'
-                                    '최종 추천 점수: ${item.totalScore.toStringAsFixed(1)}점\n\n'
-                                    'Gemini AI가 생활패턴 조화도와 사용자 우선순위 가중치를 종합 분석하여 산출했습니다.',
-                                style: const TextStyle(color: AppColors.muted, height: 1.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+class _LikeActionButton extends StatelessWidget {
+  final bool isLiked;
+  final VoidCallback onPressed;
+
+  const _LikeActionButton({
+    required this.isLiked,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const heartRed = Color(0xFFE53935);
+    const heartBg = Color(0xFFFFEFEF);
+
+    return Material(
+      color: isLiked ? heartBg : AppColors.background,
+      borderRadius: BorderRadius.circular(99),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(99),
+        onTap: onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(
+              color: isLiked ? heartRed.withValues(alpha: 0.4) : AppColors.border,
             ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _recommendationCard(BuildContext context, AiRecommendation item, int index) {
-    final person = item.profile;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: WhitePanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.lightBlue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text('추천 ${index + 1}',
-                      style: const TextStyle(
-                          color: AppColors.blue, fontSize: 12, fontWeight: FontWeight.w700)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: isLiked ? 1.15 : 1.0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  isLiked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  size: 18,
+                  color: isLiked ? heartRed : AppColors.muted,
                 ),
-                const Spacer(),
-                const Text('추천 점수', style: TextStyle(color: AppColors.muted, fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(person.name,
-                          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 5),
-                      Text('${person.dorm} · ${person.smoking == 'O' ? '흡연' : '비흡연'}',
-                          style: const TextStyle(color: AppColors.muted)),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                isLiked ? '신청 완료' : '룸메 신청',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: isLiked ? heartRed : AppColors.text,
                 ),
-                Text('${item.totalScore.toStringAsFixed(1)}점',
-                    style: const TextStyle(
-                        color: AppColors.blue, fontSize: 27, fontWeight: FontWeight.w800)),
-              ],
-            ),
-            const SizedBox(height: 22),
-            _scoreBar('생활패턴', item.patternScore, AppColors.blue),
-            _scoreBar('생활습관', item.habitScore, AppColors.teal),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('AI 평가 이유', style: TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Text(item.reason, style: const TextStyle(color: AppColors.muted, height: 1.5)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                InfoPill(text: '취침 ${person.sleep}'),
-                InfoPill(text: '청소 주 ${person.cleaningPerWeek}회'),
-                InfoPill(text: person.snoring == 'O' ? '코골이 있음' : '코골이 없음'),
-              ],
-            ),
-            for (final w in item.warnings) _warning(w),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => _showDetails(context, item),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('나와 자세히 비교하기'),
-                  SizedBox(width: 6),
-                  Icon(Icons.chevron_right, size: 20),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _RankCard extends StatelessWidget {
+  final int rank;
+  final AiRecommendation item;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
+  final VoidCallback onTap;
+
+  const _RankCard({
+    required this.rank,
+    required this.item,
+    required this.isLiked,
+    required this.onToggleLike,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('추천 룸메이트', style: TextStyle(fontWeight: FontWeight.w700)),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+    final p = item.profile;
+    final top = rank == 1;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: WhitePanel(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('내 생활에 잘 맞는 후보',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(
-              '조건 일치 ${response.eligibleCount}명 중 ${response.recommendations.length}명을 추천해요.',
-              style: const TextStyle(color: AppColors.muted),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            Row(
               children: [
-                InfoPill(text: myDorm),
-                InfoPill(text: mySmoking ? '흡연' : '비흡연'),
-                TextButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.tune, size: 18),
-                  label: const Text('조건 수정'),
+                Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: top ? AppColors.blue : AppColors.lightBlue,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$rank위',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: top ? Colors.white : AppColors.blue,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    p.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+                _LikeActionButton(
+                  isLiked: isLiked,
+                  onPressed: onToggleLike,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text(
+                  '${p.dorm} · ${p.smoking == 'O' ? '흡연' : '비흡연'}',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.muted,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${item.totalScore.toStringAsFixed(1)}점',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.blue,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.lightBlue,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Gemini AI 평가가 추천 점수에 반영되었어요.',
-                style: TextStyle(color: AppColors.blue, fontSize: 13, fontWeight: FontWeight.w600),
+            Text(
+              item.reason,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.text,
+                height: 1.45,
               ),
             ),
-            const SizedBox(height: 20),
-            for (int i = 0; i < response.recommendations.length; i++)
-              _recommendationCard(context, response.recommendations[i], i),
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                '추천 점수는 생활패턴 70%, 생활습관 30%를 반영한 비교 지표입니다. '
-                    '실제 공동생활의 만족도를 보장하지 않으며, 입사 전 생활 규칙을 직접 확인하는 것이 좋아요.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12, height: 1.6),
-              ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                InfoPill(text: '취침 ${p.sleep}'),
+                InfoPill(text: '기상 ${p.wake}'),
+                InfoPill(text: '체류 ${p.stayInDorm}'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  '상세 비교 보기',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.muted,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
+              ],
             ),
           ],
         ),

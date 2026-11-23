@@ -97,6 +97,7 @@ class RegisteredUserProfile {
 class UserStorageService {
   static const String _myProfileKey = 'roomfit_registered_user_v1';
   static const String _registeredPoolKey = 'roomfit_registered_pool_v1';
+  static const String _likedRoommatesKey = 'roomfit_liked_roommates_v1';
 
   static Future<RegisteredUserProfile?> getMyProfile() async {
     final prefs = await SharedPreferences.getInstance();
@@ -127,6 +128,27 @@ class UserStorageService {
   static Future<void> clearMyProfile() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_myProfileKey);
+    await prefs.remove(_likedRoommatesKey);
+  }
+
+  /// 내가 룸메이트 신청(좋아요)을 보낸 상대 이름 목록 조회
+  static Future<Set<String>> getLikedRoommates() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_likedRoommatesKey) ?? const [];
+    return list.toSet();
+  }
+
+  /// 특정 상대에게 룸메이트 신청(좋아요) 토글 후 최신 목록 반환
+  static Future<Set<String>> toggleLikedRoommate(String targetName) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = (prefs.getStringList(_likedRoommatesKey) ?? const []).toSet();
+    if (current.contains(targetName)) {
+      current.remove(targetName);
+    } else {
+      current.add(targetName);
+    }
+    await prefs.setStringList(_likedRoommatesKey, current.toList());
+    return current;
   }
 
   static Future<List<Roommate>> loadAllCandidates() async {

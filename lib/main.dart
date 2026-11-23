@@ -1,11 +1,16 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'ai_matching_service.dart';
 import 'clean_ui.dart';
+import 'config/firebase_config.dart';
 import 'match_list_screen.dart';
 import 'user_storage_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: firebaseOptions,
+  );
   runApp(const RoommateApp());
 }
 
@@ -576,7 +581,7 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
               const SizedBox(height: 10),
               TextField(
                 controller: _name,
-                decoration: const InputDecoration(hintText: '예: 김민주'),
+                decoration: const InputDecoration(hintText: '예: 김민준'),
               ),
               const SizedBox(height: 22),
               const Text('희망 기숙사 동',
@@ -1153,6 +1158,25 @@ class _RecommendationDashboardScreenState
     extends State<RecommendationDashboardScreen> {
   bool _loading = false;
   String? _error;
+  Set<String> _likedRoommates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLikedRoommates();
+  }
+
+  Future<void> _loadLikedRoommates() async {
+    final liked = await UserStorageService.getLikedRoommates();
+    if (!mounted) return;
+    setState(() => _likedRoommates = liked);
+  }
+
+  Future<void> _cancelLikedRoommate(String name) async {
+    final updated = await UserStorageService.toggleLikedRoommate(name);
+    if (!mounted) return;
+    setState(() => _likedRoommates = updated);
+  }
 
   int _hhmmToMinutes(String hhmm) {
     final parts = hhmm.split(':');
@@ -1226,7 +1250,7 @@ class _RecommendationDashboardScreenState
         return _hhmmToMinutes(str);
       }).toList();
 
-      Navigator.of(context).push(
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ResultScreen(
             response: response,
@@ -1249,6 +1273,9 @@ class _RecommendationDashboardScreenState
           ),
         ),
       );
+
+      // 추천 화면에서 돌아오면 최신 신청 목록 동기화
+      await _loadLikedRoommates();
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
@@ -1326,6 +1353,78 @@ class _RecommendationDashboardScreenState
                     fontWeight: FontWeight.w600,
                     color: AppColors.text,
                   ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (_likedRoommates.isNotEmpty) ...[
+              WhitePanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.favorite_rounded,
+                          size: 18,
+                          color: Color(0xFFE53935),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '내가 룸메이트 신청한 후보 (${_likedRoommates.length}명)',
+                          style: const TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _likedRoommates.map((name) {
+                        return Container(
+                          padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFEFEF),
+                            borderRadius: BorderRadius.circular(99),
+                            border: Border.all(
+                              color: const Color(0xFFE53935)
+                                  .withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                name,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFE53935),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(99),
+                                onTap: () => _cancelLikedRoommate(name),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(2),
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    size: 16,
+                                    color: Color(0xFFE53935),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 14),
