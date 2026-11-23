@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'ai_matching_service.dart';
@@ -10,6 +11,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: firebaseOptions,
+  );
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: false,
   );
   runApp(const RoommateApp());
 }
@@ -74,6 +78,7 @@ class EntryGate extends StatefulWidget {
 class _EntryGateState extends State<EntryGate> {
   RegisteredUserProfile? _savedUser;
   bool _checking = true;
+  String? _initError;
 
   @override
   void initState() {
@@ -82,12 +87,26 @@ class _EntryGateState extends State<EntryGate> {
   }
 
   Future<void> _checkRegistration() async {
-    final user = await UserStorageService.getMyProfile();
-    if (!mounted) return;
     setState(() {
-      _savedUser = user;
-      _checking = false;
+      _checking = true;
+      _initError = null;
     });
+
+    try {
+      final user = await UserStorageService.getMyProfile()
+          .timeout(const Duration(seconds: 20));
+      if (!mounted) return;
+      setState(() {
+        _savedUser = user;
+        _checking = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _initError = e.toString();
+        _checking = false;
+      });
+    }
   }
 
   @override
@@ -96,6 +115,46 @@ class _EntryGateState extends State<EntryGate> {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(color: AppColors.blue),
+        ),
+      );
+    }
+
+    if (_initError != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.cloud_off_rounded,
+                  size: 48,
+                  color: Color(0xFFE53935),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Firebase 연결에 실패했습니다',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _initError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.muted),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _checkRegistration,
+                  child: const Text('다시 시도'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -406,39 +465,47 @@ class _ProfileRegisterScreenState extends State<ProfileRegisterScreen> {
       _error = null;
     });
 
-    final dailyStrings = List<String>.generate(5, (i) {
-      return _dailyNoClass[i]
-          ? '수업 없음'
-          : _formatTimeOfDay(_dailyClassTimes[i]);
-    });
+    try {
+      final dailyStrings = List<String>.generate(5, (i) {
+        return _dailyNoClass[i]
+            ? '수업 없음'
+            : _formatTimeOfDay(_dailyClassTimes[i]);
+      });
 
-    final shortDays = ['월', '화', '수', '목', '금'];
-    final summaryFirstClass = List<String>.generate(5, (i) {
-      return '${shortDays[i]} ${dailyStrings[i]}';
-    }).join(', ');
+      final shortDays = ['월', '화', '수', '목', '금'];
+      final summaryFirstClass = List<String>.generate(5, (i) {
+        return '${shortDays[i]} ${dailyStrings[i]}';
+      }).join(', ');
 
-    final profile = RegisteredUserProfile(
-      name: _name.text.trim(),
-      dorm: _dorm,
-      smoking: _smoking,
-      sleep: _formatTimeOfDay(_sleepTime),
-      wake: _formatTimeOfDay(_wakeTime),
-      firstClass: summaryFirstClass,
-      dailyFirstClasses: dailyStrings,
-      stayInDorm: _stay,
-      drinkingPerWeek: _drink,
-      cleaningPerWeek: _clean,
-      eatInRoom: _eat,
-      callInRoom: _call,
-      lightSleeper: _lightSleep ? 'O' : 'X',
-      snoring: _snore ? 'O' : 'X',
-      rank3Priorities: _priorities,
-    );
+      final profile = RegisteredUserProfile(
+        name: _name.text.trim(),
+        dorm: _dorm,
+        smoking: _smoking,
+        sleep: _formatTimeOfDay(_sleepTime),
+        wake: _formatTimeOfDay(_wakeTime),
+        firstClass: summaryFirstClass,
+        dailyFirstClasses: dailyStrings,
+        stayInDorm: _stay,
+        drinkingPerWeek: _drink,
+        cleaningPerWeek: _clean,
+        eatInRoom: _eat,
+        callInRoom: _call,
+        lightSleeper: _lightSleep ? 'O' : 'X',
+        snoring: _snore ? 'O' : 'X',
+        rank3Priorities: _priorities,
+      );
 
-    await UserStorageService.saveMyProfile(profile);
+      await UserStorageService.saveMyProfile(profile);
 
-    if (!mounted) return;
-    Navigator.of(context).pop(profile);
+      if (!mounted) return;
+      Navigator.of(context).pop(profile);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = '저장 실패: $e';
+      });
+    }
   }
 
   @override
@@ -1167,9 +1234,11 @@ class _RecommendationDashboardScreenState
   }
 
   Future<void> _loadLikedRoommates() async {
-    final liked = await UserStorageService.getLikedRoommates();
-    if (!mounted) return;
-    setState(() => _likedRoommates = liked);
+    try {
+      final liked = await UserStorageService.getLikedRoommates();
+      if (!mounted) return;
+      setState(() => _likedRoommates = liked);
+    } catch (_) {}
   }
 
   Future<void> _cancelLikedRoommate(String name) async {
@@ -1274,7 +1343,6 @@ class _RecommendationDashboardScreenState
         ),
       );
 
-      // 추천 화면에서 돌아오면 최신 신청 목록 동기화
       await _loadLikedRoommates();
     } catch (e) {
       if (!mounted) return;
